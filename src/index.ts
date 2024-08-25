@@ -9,3 +9,9 @@ export const initializeFrontend = (setBackendUrl: string) => {
 export const setFrontendToken = (token: string) => {
     backend.token = token;
 };
+
+export { entryApi } from './entryApi';
+export { locationApi } from './locationApi';
+export { healthMetricApi } from './healthMetricApi';
+
+export { Entries } from './Entries';
