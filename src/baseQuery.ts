@@ -3,9 +3,9 @@ import { backend } from '.';
 
 const rawBaseQuery = (baseUrl: string) => fetchBaseQuery({ 
     baseUrl: baseUrl,
+    credentials: 'include',
     prepareHeaders: (headers) => {
         headers.set('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + backend.token);
         return headers;
     }
   });
