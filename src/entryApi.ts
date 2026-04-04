@@ -1,10 +1,11 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
-import baseQuery from './baseQuery';
+import { createBaseQuery } from '@clarion-app/frontend-base';
+import { backend } from './config';
 import { EntryType } from './types';
 
 export const entryApi = createApi({
     reducerPath: 'clarion-app-life-log-entryApi',
-    baseQuery: baseQuery(),
+    baseQuery: createBaseQuery({ routePrefix: '/api/clarion-app/life-log', backendConfig: backend }),
     tagTypes: ['Entry'],
     endpoints: (build) => ({
         getEntries: build.query<EntryType[], void>({

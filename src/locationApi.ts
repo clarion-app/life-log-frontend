@@ -1,10 +1,11 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
-import baseQuery from './baseQuery';
+import { createBaseQuery } from '@clarion-app/frontend-base';
+import { backend } from './config';
 import { LocationType } from './types';
 
 export const locationApi = createApi({
     reducerPath: 'clarion-app-life-log-locationApi',
-    baseQuery: baseQuery(),
+    baseQuery: createBaseQuery({ routePrefix: '/api/clarion-app/life-log', backendConfig: backend }),
     tagTypes: ['Location'],
     endpoints: (build) => ({
         getLocations: build.query<LocationType[], void>({
