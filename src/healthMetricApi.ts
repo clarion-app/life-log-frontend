@@ -41,3 +41,5 @@ export const healthMetricApi = createApi({
         }),
     }),
 });
+
+export const { useGetHealthMetricsQuery, useGetHealthMetricQuery, useAddHealthMetricMutation, useUpdateHealthMetricMutation, useDeleteHealthMetricMutation } = healthMetricApi;

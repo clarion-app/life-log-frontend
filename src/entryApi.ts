@@ -3,6 +3,8 @@ import { createBaseQuery } from '@clarion-app/frontend-base';
 import { backend } from './config';
 import { EntryType } from './types';
 
+export type EntryPayload = Partial<Omit<EntryType, 'contacts'>> & { contacts?: string[] };
+
 export const entryApi = createApi({
     reducerPath: 'clarion-app-life-log-entryApi',
     baseQuery: createBaseQuery({ routePrefix: '/api/clarion-app/life-log', backendConfig: backend }),
@@ -16,7 +18,7 @@ export const entryApi = createApi({
             query: (id) => `entry/${id}`,
             providesTags: ['Entry'],
         }),
-        addEntry: build.mutation<EntryType, Partial<EntryType>>({
+        addEntry: build.mutation<EntryType, EntryPayload>({
             query: (body) => ({
                 url: `entry`,
                 method: 'POST',
@@ -24,7 +26,7 @@ export const entryApi = createApi({
             }),
             invalidatesTags: ['Entry'],
         }),
-        updateEntry: build.mutation<EntryType, Partial<EntryType>>({
+        updateEntry: build.mutation<EntryType, EntryPayload>({
             query: (body) => ({
                 url: `entry/${body.id}`,
                 method: 'PUT',

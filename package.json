@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/clarion-app/life-log-frontend#readme",
   "dependencies": {
+    "@clarion-app/contacts-frontend": "^1.1.0",
     "@clarion-app/frontend-base": "^1.0.0",
     "@clarion-app/types": "^2.0.0",
     "@reduxjs/toolkit": "^2.2.7",
@@ -37,6 +38,26 @@
         {
           "path": "/clarion-app/life-log",
           "element": "<Entries />"
+        },
+        {
+          "path": "/clarion-app/life-log/:id",
+          "element": "<Entry />"
+        },
+        {
+          "path": "/clarion-app/life-log/health-metrics",
+          "element": "<HealthMetrics />"
+        },
+        {
+          "path": "/clarion-app/life-log/health-metrics/:id",
+          "element": "<HealthMetric />"
+        },
+        {
+          "path": "/clarion-app/life-log/locations",
+          "element": "<Locations />"
+        },
+        {
+          "path": "/clarion-app/life-log/locations/:id",
+          "element": "<Location />"
         }
       ],
       "menu": {
@@ -45,6 +66,14 @@
           {
             "name": "Entries",
             "path": "/clarion-app/life-log"
+          },
+          {
+            "name": "Health Metrics",
+            "path": "/clarion-app/life-log/health-metrics"
+          },
+          {
+            "name": "Locations",
+            "path": "/clarion-app/life-log/locations"
           }
         ]
       }

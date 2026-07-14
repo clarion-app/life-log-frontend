@@ -3,6 +3,8 @@ import { createBaseQuery } from '@clarion-app/frontend-base';
 import { backend } from './config';
 import { LocationType } from './types';
 
+export type LocationPayload = Partial<Omit<LocationType, 'contacts'>> & { contacts?: string[] };
+
 export const locationApi = createApi({
     reducerPath: 'clarion-app-life-log-locationApi',
     baseQuery: createBaseQuery({ routePrefix: '/api/clarion-app/life-log', backendConfig: backend }),
@@ -16,7 +18,7 @@ export const locationApi = createApi({
             query: (id) => `location/${id}`,
             providesTags: ['Location'],
         }),
-        addLocation: build.mutation<LocationType, Partial<LocationType>>({
+        addLocation: build.mutation<LocationType, LocationPayload>({
             query: (body) => ({
                 url: `location`,
                 method: 'POST',
@@ -24,7 +26,7 @@ export const locationApi = createApi({
             }),
             invalidatesTags: ['Location'],
         }),
-        updateLocation: build.mutation<LocationType, Partial<LocationType>>({
+        updateLocation: build.mutation<LocationType, LocationPayload>({
             query: (body) => ({
                 url: `location/${body.id}`,
                 method: 'PUT',
@@ -41,3 +43,5 @@ export const locationApi = createApi({
         }),
     }),
 });
+
+export const { useGetLocationsQuery, useGetLocationQuery, useAddLocationMutation, useUpdateLocationMutation, useDeleteLocationMutation } = locationApi;
