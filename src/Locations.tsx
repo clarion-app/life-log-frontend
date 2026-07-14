@@ -15,10 +15,36 @@ export const Locations: React.FC = () => {
     const [description, setDescription] = useState('');
     const [visitedAt, setVisitedAt] = useState('');
     const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+    const [isLocating, setIsLocating] = useState(false);
+    const [geoError, setGeoError] = useState('');
 
     const toggleContact = (contactId: string, checked: boolean) => {
         setSelectedContactIds((prev) =>
             checked ? [...prev, contactId] : prev.filter((id) => id !== contactId)
+        );
+    };
+
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            setGeoError('Geolocation is not supported by this browser.');
+            return;
+        }
+        setIsLocating(true);
+        setGeoError('');
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setLatitude(position.coords.latitude.toString());
+                setLongitude(position.coords.longitude.toString());
+                if (!visitedAt) {
+                    setVisitedAt(new Date().toISOString().slice(0, 16));
+                }
+                setIsLocating(false);
+            },
+            (err) => {
+                setGeoError(err.message || 'Unable to retrieve your location.');
+                setIsLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
         );
     };
 
@@ -79,6 +105,20 @@ export const Locations: React.FC = () => {
             <div className="box">
                 <h2 className="title is-4">Add New Location</h2>
                 <form onSubmit={handleAddLocation}>
+                    <div className="field">
+                        <div className="control">
+                            <button
+                                type="button"
+                                className={`button is-info ${isLocating ? 'is-loading' : ''}`}
+                                onClick={handleUseCurrentLocation}
+                                disabled={isLocating}
+                            >
+                                Use My Location
+                            </button>
+                        </div>
+                        {geoError && <p className="help is-danger">{geoError}</p>}
+                    </div>
+
                     <div className="field">
                         <label className="label">Latitude</label>
                         <div className="control">
