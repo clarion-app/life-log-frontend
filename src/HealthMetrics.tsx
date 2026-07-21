@@ -2,11 +2,21 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetHealthMetricsQuery, useAddHealthMetricMutation } from './healthMetricApi';
 import { HealthMetricType } from './types';
+import { sourceLabel, sourceTagClass } from './sourceLabels';
+import { SourceFilter } from './SourceFilter';
 
 export const HealthMetrics: React.FC = () => {
     const navigate = useNavigate();
-    const { data: metrics, error, isLoading } = useGetHealthMetricsQuery();
+
+    const [activeSource, setActiveSource] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+
+    const filters = activeSource ? { source: activeSource, page } : { page };
+    const { data: pageData, error, isLoading } = useGetHealthMetricsQuery(filters);
     const [addHealthMetric] = useAddHealthMetricMutation();
+
+    const metrics = pageData?.data ?? [];
+    const meta = pageData?.meta;
 
     const [type, setType] = useState('');
     const [value, setValue] = useState('');
@@ -24,31 +34,88 @@ export const HealthMetrics: React.FC = () => {
         }
     };
 
+    const handleSourceChange = (source: string | null) => {
+        setActiveSource(source);
+        setPage(1);
+    };
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage);
+    };
+
     return (
         <div className="container">
             <h1 className="title">Life Log - Health Metrics</h1>
+
             {isLoading && <div className="notification is-info">Loading...</div>}
             {error && <div className="notification is-danger">Error loading health metrics</div>}
-            {metrics && metrics.length === 0 && <div className="notification is-warning">No health metrics found</div>}
 
-            {metrics && metrics.length > 0 && (
-                <div className="box">
-                    <ul>
-                        {metrics.map((metric: HealthMetricType) => (
-                            <li key={metric.id} className="media">
-                                <div className="media-content">
-                                    <p
-                                        className="title is-5"
-                                        onClick={() => navigate('/clarion-app/life-log/health-metrics/' + metric.id)}
+            {!isLoading && !error && meta && (
+                <>
+                    <SourceFilter
+                        availableSources={meta.available_sources}
+                        activeSource={activeSource}
+                        onSourceChange={handleSourceChange}
+                    />
+
+                    {metrics.length === 0 && meta.total === 0 && (
+                        <div className="notification is-warning">
+                            {meta.available_sources.length === 0
+                                ? 'No health metrics found'
+                                : 'No readings match this filter'}
+                        </div>
+                    )}
+
+                    {metrics.length > 0 && (
+                        <div className="box">
+                            <ul>
+                                {metrics.map((metric: HealthMetricType) => (
+                                    <li key={metric.id} className="media">
+                                        <div className="media-content">
+                                            <p
+                                                className="title is-5"
+                                                onClick={() => navigate('/clarion-app/life-log/health-metrics/' + metric.id)}
+                                            >
+                                                {metric.type}: {metric.value}
+                                            </p>
+                                            <p className="subtitle is-6">{metric.recorded_at}</p>
+                                            <span className={`tag is-light ${sourceTagClass(metric.source)}`}>
+                                                {sourceLabel(metric.source)}
+                                            </span>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <nav className="pagination is-centered mt-4" role="navigation" aria-label="pagination">
+                                {meta.current_page > 1 && (
+                                    <button
+                                        className="pagination-previous"
+                                        onClick={() => handlePageChange(meta.current_page - 1)}
                                     >
-                                        {metric.type}: {metric.value}
-                                    </p>
-                                    <p className="subtitle is-6">{metric.recorded_at}</p>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                                        Previous
+                                    </button>
+                                )}
+                                {meta.current_page < meta.last_page && (
+                                    <button
+                                        className="pagination-next"
+                                        onClick={() => handlePageChange(meta.current_page + 1)}
+                                    >
+                                        Next
+                                    </button>
+                                )}
+                                <p className="pagination-pagination">
+                                    <span className="pagination-link is-current">
+                                        <span>{meta.current_page}</span>
+                                        <span className="is-sr-only">(current)</span>
+                                    </span>
+                                    <span className="pagination-ellipsis">…</span>
+                                    <span className="pagination-link">{meta.last_page}</span>
+                                </p>
+                            </nav>
+                        </div>
+                    )}
+                </>
             )}
 
             <div className="box">

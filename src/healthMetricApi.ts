@@ -1,15 +1,28 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { createBaseQuery } from '@clarion-app/frontend-base';
 import { backend } from './config';
-import { HealthMetricType } from './types';
+import { HealthMetricType, MeasurementPageType } from './types';
+
+export interface HealthMetricsFilters {
+    source?: string;
+    page?: number;
+    per_page?: number;
+}
 
 export const healthMetricApi = createApi({
     reducerPath: 'clarion-app-life-log-healthMetricApi',
     baseQuery: createBaseQuery({ routePrefix: '/api/clarion-app/life-log', backendConfig: backend }),
     tagTypes: ['HealthMetric'],
     endpoints: (build) => ({
-        getHealthMetrics: build.query<HealthMetricType[], void>({
-            query: () => 'health-metric',
+        getHealthMetrics: build.query<MeasurementPageType, HealthMetricsFilters>({
+            query: (filters = {}) => ({
+                url: 'health-metric',
+                params: {
+                    page: filters.page ?? 1,
+                    ...(filters.source !== undefined && { source: filters.source }),
+                    ...(filters.per_page !== undefined && { per_page: filters.per_page }),
+                },
+            }),
             providesTags: ['HealthMetric'],
         }),
         getHealthMetric: build.query<HealthMetricType, string>({

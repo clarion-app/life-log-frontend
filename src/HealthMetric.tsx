@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useGetHealthMetricQuery, useUpdateHealthMetricMutation, useDeleteHealthMetricMutation } from './healthMetricApi';
 import { HealthMetricType } from './types';
+import { sourceLabel, sourceTagClass } from './sourceLabels';
 
 export const HealthMetric: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -91,6 +92,11 @@ export const HealthMetric: React.FC = () => {
                         <h2 className="title">{metric.type}</h2>
                         <p className="subtitle is-6">{metric.recorded_at}</p>
                         <p>Value: {metric.value}</p>
+                        <div className="mt-2">
+                            <span className={`tag is-light ${sourceTagClass(metric.source)}`}>
+                                {sourceLabel(metric.source)}
+                            </span>
+                        </div>
 
                         <div className="buttons mt-4">
                             <button onClick={handleEdit} className="button is-warning">Edit</button>
