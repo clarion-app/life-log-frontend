@@ -15,39 +15,34 @@ import type { ConnectionType } from './types';
 
 registerUserChannelHandler({
     event: '.ClarionApp\\LifeLogBackend\\Events\\ConnectedAccountStatusChanged',
-    handler: (payload, _dispatch) => {
+    handler: (payload, dispatch) => {
         const connection = payload as ConnectionType;
 
-        // Try to update the cached entry in place
-        const updateResult = connectedAccountApi.util.updateQueryData(
-            'getConnections',
-            undefined,
-            (state) => {
-                if (!state?.connections) return state;
+        if (!connection || typeof connection.id !== 'string') return;
 
-                const idx = state.connections.findIndex((c) => c.id === connection.id);
-                if (idx === -1) {
-                    // Unknown id — signal fallback to tag invalidation
-                    // by returning state unchanged and letting the caller handle it
-                    return state;
-                }
+        // The recipe runs synchronously inside the dispatch below, and only
+        // when a cache entry for the query exists — so this flag is settled
+        // by the time it is read.
+        let replaced = false;
 
-                // Replace the entry in place with the full snapshot
-                return {
-                    ...state,
-                    connections: [
-                        ...state.connections.slice(0, idx),
-                        connection,
-                        ...state.connections.slice(idx + 1),
-                    ],
-                };
-            },
+        dispatch(
+            connectedAccountApi.util.updateQueryData(
+                'getConnections',
+                undefined,
+                (draft) => {
+                    const idx = draft?.connections?.findIndex((c) => c.id === connection.id) ?? -1;
+                    if (idx === -1) return;
+
+                    draft.connections[idx] = connection;
+                    replaced = true;
+                },
+            ),
         );
 
-        // If updateQueryData returned undefined or the state was unchanged
-        // (unknown id), fall back to tag invalidation
-        if (updateResult === undefined) {
-            connectedAccountApi.util.invalidateTags([{ type: 'Connection' }]);
+        // No cache entry, or an id that is not in it (a connection made in
+        // another tab) — fall back to tag invalidation so the next read fetches it.
+        if (!replaced) {
+            dispatch(connectedAccountApi.util.invalidateTags([{ type: 'Connection' }]));
         }
     },
 });

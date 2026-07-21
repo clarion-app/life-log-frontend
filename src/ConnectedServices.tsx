@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   useGetConnectionsQuery,
   useBeginConnectionMutation,
@@ -7,12 +7,12 @@ import {
 import { useGetServiceCredentialsQuery } from './serviceCredentialApi';
 import type { ConfiguredServiceType, ConnectionType } from './types';
 import { ConnectionCard } from './ConnectionCard';
+import { serviceLabel } from './sourceLabels';
 import { useRealtimeStatus } from './useRealtimeStatus';
 // Side-effect import: registers handler for ConnectedAccountStatusChanged broadcasts
 import './connectionRealtime';
 
 export const ConnectedServices: React.FC = () => {
-  const navigate = useNavigate();
   const realtimeStatus = useRealtimeStatus();
   const {
     data: connectionsData,
@@ -27,6 +27,9 @@ export const ConnectedServices: React.FC = () => {
   } = useGetServiceCredentialsQuery();
   const [beginConnection, { isLoading: connecting }] = useBeginConnectionMutation();
   const [connectError, setConnectError] = useState<Record<string, string>>({});
+  // Services whose Connect attempt was refused because the node has no live
+  // credential — these get the pointer to where configuration happens (FR-013).
+  const [unconfiguredOnConnect, setUnconfiguredOnConnect] = useState<Record<string, boolean>>({});
 
   const connections = connectionsData?.connections ?? [];
   const services = servicesData?.services ?? [];
@@ -46,6 +49,7 @@ export const ConnectedServices: React.FC = () => {
 
   const handleConnect = async (externalService: string) => {
     setConnectError((prev) => ({ ...prev, [externalService]: '' }));
+    setUnconfiguredOnConnect((prev) => ({ ...prev, [externalService]: false }));
     try {
       const result = await beginConnection({ external_service: externalService }).unwrap();
       window.open(result.authorization_url, '_self');
@@ -56,6 +60,7 @@ export const ConnectedServices: React.FC = () => {
           [externalService]:
             'This service is not available. It must be configured first.',
         }));
+        setUnconfiguredOnConnect((prev) => ({ ...prev, [externalService]: true }));
       } else {
         setConnectError((prev) => ({
           ...prev,
@@ -141,24 +146,23 @@ export const ConnectedServices: React.FC = () => {
               <div className="media">
                 <div className="media-content">
                   <p className="is-size-5">
-                    {humanizeService(svc.external_service)}
+                    {serviceLabel(svc.external_service)}
                   </p>
                   {connectError[svc.external_service] && (
                     <p className="has-text-danger mt-2">
                       {connectError[svc.external_service]}
                     </p>
                   )}
-                  {svc.external_service === 'google-health' &&
-                    connectError[svc.external_service]?.includes('configure') && (
-                      <p className="mt-2">
-                        <Link
-                          to="/clarion-app/life-log/wearable-services"
-                          className="has-text-link"
-                        >
-                          Go to Wearable Services to configure it first.
-                        </Link>
-                      </p>
-                    )}
+                  {unconfiguredOnConnect[svc.external_service] && (
+                    <p className="mt-2">
+                      <Link
+                        to="/clarion-app/life-log/wearable-services"
+                        className="has-text-link"
+                      >
+                        Go to Wearable Services to configure it first.
+                      </Link>
+                    </p>
+                  )}
                 </div>
                 <div className="media-right">
                   <button
@@ -184,7 +188,7 @@ export const ConnectedServices: React.FC = () => {
               <div className="media">
                 <div className="media-content">
                   <p className="is-size-5">
-                    {humanizeService(svc.external_service)}
+                    {serviceLabel(svc.external_service)}
                   </p>
                   <p className="has-text-grey">
                     This service is not configured on this node.
@@ -205,22 +209,3 @@ export const ConnectedServices: React.FC = () => {
     </div>
   );
 };
-
-function humanizeService(slug: string): string {
-  return slug
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}

@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSyncNowMutation, useBeginConnectionMutation, useDisconnectMutation } from './connectedAccountApi';
 import { scopeLabel } from './scopeLabels';
+import { serviceLabel } from './sourceLabels';
 import {
     attentionReasonCopy,
     attentionReasonRemedy,
@@ -11,12 +12,6 @@ import type { ConnectionType, SyncRequestState } from './types';
 
 interface ConnectionCardProps {
     connection: ConnectionType;
-}
-
-function humanizeService(slug: string): string {
-    return slug
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatSyncTime(iso: string | null): string {
@@ -33,6 +28,24 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({ connection }) =>
     const [syncState, setSyncState] = useState<SyncRequestState>({ kind: 'idle' });
     const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
     const [disconnectError, setDisconnectError] = useState<string | null>(null);
+    const [reconnectError, setReconnectError] = useState<string | null>(null);
+
+    // The acknowledgement is a record of what the user asked and what the
+    // server answered — not a claim about backend state. It is cleared once
+    // the connection itself moves, which is what a broadcast or a refetch
+    // delivers (data-model §5).
+    const syncSignature = [
+        connection.status,
+        connection.last_successful_sync_at ?? '',
+        connection.needs_attention_reason ?? '',
+    ].join('|');
+    const lastSignature = useRef(syncSignature);
+
+    useEffect(() => {
+        if (lastSignature.current === syncSignature) return;
+        lastSignature.current = syncSignature;
+        setSyncState({ kind: 'idle' });
+    }, [syncSignature]);
 
     const handleSync = useCallback(async () => {
         setSyncState({ kind: 'requesting' });
@@ -46,21 +59,25 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({ connection }) =>
                 setSyncState({ kind: 'queued', at: Date.now() });
             }
         } catch (err: any) {
-            setSyncState({
-                kind: 'refused',
-                reason: err?.data?.error || err?.message || 'Sync request failed',
-            });
+            // 409 carries a reason from the closed set — render its copy, not
+            // the wire value. Anything else is a transport failure.
+            if (err?.status === 409 && err?.data?.error === 'needs_attention') {
+                setSyncState({ kind: 'refused', reason: err?.data?.reason ?? 'unknown' });
+            } else {
+                setSyncState({ kind: 'failed' });
+            }
         }
     }, [syncNow, connection.id]);
 
     const handleReconnect = useCallback(async () => {
+        setReconnectError(null);
         try {
             const result = await beginConnection({
                 external_service: connection.external_service,
             }).unwrap();
             window.open(result.authorization_url, '_self');
         } catch {
-            // Silently fail; the user will see no change and can retry.
+            setReconnectError('Could not start the reconnection. Try again.');
         }
     }, [beginConnection, connection.external_service]);
 
@@ -102,7 +119,7 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({ connection }) =>
                         <div className="level-left">
                             <div>
                                 <p className="is-size-5">
-                                    {humanizeService(connection.external_service)}
+                                    {serviceLabel(connection.external_service)}
                                 </p>
                                 <p className={isNeedsAttention ? 'has-text-danger' : 'has-text-success'}>
                                     {isNeedsAttention
@@ -153,6 +170,10 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({ connection }) =>
                                             : 'Reconnect'}
                                 </button>
                             </div>
+
+                            {reconnectError && (
+                                <p className="has-text-danger is-size-7">{reconnectError}</p>
+                            )}
                         </div>
                     )}
 
@@ -193,33 +214,36 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({ connection }) =>
                         </div>
                     )}
 
-                    {/* Update Now Button */}
+                    {/* Update Now — never the primary action on an unhealthy card,
+                        where the server refuses the request and the remedy is. */}
                     <div className="mt-3">
-                        {syncState.kind === 'idle' && (
-                            <button
-                                className="button is-small is-info"
-                                disabled={syncing}
-                                onClick={handleSync}
-                            >
-                                {syncing ? 'Requesting…' : 'Update now'}
-                            </button>
-                        )}
-                        {syncState.kind === 'requesting' && (
-                            <span className="has-text-grey is-size-7">Requesting…</span>
-                        )}
+                        <button
+                            className={`button is-small ${isNeedsAttention ? 'is-light' : 'is-info'}`}
+                            disabled={syncing || syncState.kind === 'requesting'}
+                            onClick={handleSync}
+                        >
+                            {syncState.kind === 'requesting' || syncing
+                                ? 'Requesting…'
+                                : 'Update now'}
+                        </button>
+
                         {syncState.kind === 'queued' && (
-                            <span className="has-text-success is-size-7">Update requested</span>
+                            <span className="has-text-success is-size-7 ml-2">Update requested</span>
                         )}
                         {syncState.kind === 'already_running' && (
-                            <span className="has-text-warning is-size-7">
+                            <span className="has-text-warning is-size-7 ml-2">
                                 An update is already running
                             </span>
                         )}
                         {syncState.kind === 'refused' && (
-                            <span className="has-text-danger is-size-7">{syncState.reason}</span>
+                            <span className="has-text-danger is-size-7 ml-2">
+                                {attentionReasonCopy(syncState.reason, connection.external_service)}
+                            </span>
                         )}
                         {syncState.kind === 'failed' && (
-                            <span className="has-text-danger is-size-7">Update failed</span>
+                            <span className="has-text-danger is-size-7 ml-2">
+                                The update could not be requested. Try again.
+                            </span>
                         )}
                     </div>
 
@@ -246,11 +270,11 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({ connection }) =>
                 <div className="modal-background" onClick={handleDisconnectCancel} />
                 <div className="modal-card">
                     <header className="modal-card-head">
-                        <p className="modal-card-title">Disconnect {humanizeService(connection.external_service)}</p>
+                        <p className="modal-card-title">Disconnect {serviceLabel(connection.external_service)}</p>
                     </header>
                     <section className="modal-card-body">
                         <p>
-                            This will stop future data from {humanizeService(connection.external_service)}.
+                            This will stop future data from {serviceLabel(connection.external_service)}.
                             Measurements already imported from this service are kept.
                         </p>
                         {disconnectError && (

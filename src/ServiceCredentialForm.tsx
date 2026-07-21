@@ -36,9 +36,16 @@ export const ServiceCredentialForm: React.FC<ServiceCredentialFormProps> = ({ se
     if (!clientIdVal) {
       errors.client_id = ['Client ID is required. Enter the value from the provider console.'];
     }
+    // The secret is required on create only. On update, leaving it blank is
+    // the one correct way to say "leave the stored secret alone".
+    if (!isConfigured && !(secretRef.current?.value ?? '').trim()) {
+      errors.client_secret = [
+        'Client secret is required. Enter the value from the provider console.',
+      ];
+    }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
-  }, []);
+  }, [isConfigured]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

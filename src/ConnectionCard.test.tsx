@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
 // Mock RTK Query hooks
@@ -165,6 +166,108 @@ describe('ConnectionCard', () => {
             await waitFor(() => {
                 expect(screen.queryByRole('alert')).not.toBeInTheDocument();
             });
+        });
+    });
+
+    describe('Update now — 409 refusal renders the reason, not the wire value', () => {
+        const refuse = (reason: string) =>
+            mockUseSyncNowMutation.mockImplementation(() => [
+                vi.fn().mockReturnValue({
+                    unwrap: () =>
+                        Promise.reject({
+                            status: 409,
+                            data: { error: 'needs_attention', reason },
+                        }),
+                }),
+                { isLoading: false },
+            ]);
+
+        it('renders the closed-set copy for the refusal reason', async () => {
+            refuse('credential_removed');
+
+            render(
+                <MemoryRouter>
+                    <ConnectionCard connection={makeConnection({
+                        status: 'needs_attention',
+                        needs_attention_reason: 'credential_removed',
+                    })} />
+                </MemoryRouter>,
+            );
+            fireEvent.click(screen.getByRole('button', { name: /update now/i }));
+
+            await waitFor(() => {
+                expect(
+                    screen.getAllByText(/no longer configured on this node/i).length,
+                ).toBeGreaterThan(0);
+            });
+        });
+
+        it('never echoes the raw wire values', async () => {
+            refuse('credential_removed');
+
+            render(
+                <MemoryRouter>
+                    <ConnectionCard connection={makeConnection({
+                        status: 'needs_attention',
+                        needs_attention_reason: 'credential_removed',
+                    })} />
+                </MemoryRouter>,
+            );
+            fireEvent.click(screen.getByRole('button', { name: /update now/i }));
+
+            await waitFor(() => {
+                expect(screen.queryByText(/needs_attention/)).not.toBeInTheDocument();
+                expect(screen.queryByText(/credential_removed/)).not.toBeInTheDocument();
+            });
+        });
+    });
+
+    describe('the acknowledgement is transient, not a status', () => {
+        it('keeps Update now reachable after a queued acknowledgement', async () => {
+            render(<ConnectionCard connection={makeConnection()} />);
+            fireEvent.click(screen.getByRole('button', { name: /update now/i }));
+
+            await waitFor(() => {
+                expect(screen.getByText(/Update requested/i)).toBeInTheDocument();
+            });
+            expect(screen.getByRole('button', { name: /update now/i })).toBeEnabled();
+        });
+
+        it('clears once the connection itself moves', async () => {
+            const { rerender } = render(<ConnectionCard connection={makeConnection()} />);
+            fireEvent.click(screen.getByRole('button', { name: /update now/i }));
+
+            await waitFor(() => {
+                expect(screen.getByText(/Update requested/i)).toBeInTheDocument();
+            });
+
+            // What a broadcast or a refetch delivers: a newer successful update.
+            rerender(<ConnectionCard connection={makeConnection({
+                last_successful_sync_at: '2025-01-16T10:30:00Z',
+            })} />);
+
+            await waitFor(() => {
+                expect(screen.queryByText(/Update requested/i)).not.toBeInTheDocument();
+            });
+        });
+    });
+
+    describe('Update now is not the primary action on an unhealthy card', () => {
+        it('is primary when healthy', () => {
+            render(<ConnectionCard connection={makeConnection()} />);
+            expect(
+                screen.getByRole('button', { name: /update now/i }).className,
+            ).toContain('is-info');
+        });
+
+        it('is demoted when the connection needs attention', () => {
+            render(<ConnectionCard connection={makeConnection({
+                status: 'needs_attention',
+                needs_attention_reason: 'access_revoked',
+            })} />);
+            expect(
+                screen.getByRole('button', { name: /update now/i }).className,
+            ).not.toContain('is-info');
         });
     });
 

@@ -33,10 +33,27 @@ export function sourceLabel(source: string | null): string {
     // Known provider → friendly name
     if (slug in PROVIDER_LABELS) return PROVIDER_LABELS[slug];
 
-    // Unknown provider → humanise the slug (replace hyphens, capitalise each word)
+    // Unknown provider → humanise the slug (replace separators, capitalise each word)
+    return humanizeSlug(slug);
+}
+
+/** Humanise a slug: separators become spaces, each word is capitalised. */
+function humanizeSlug(slug: string): string {
     return slug
-        .replace(/-/g, ' ')
+        .replace(/[-_]+/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Return the reader-facing name for an external service slug.
+ *
+ * Distinct from `sourceLabel` only in that a service is never "manual":
+ * this is the resolver for `ConnectionType.external_service` and
+ * `ServiceCredentialType.external_service`, so the raw slug is never
+ * rendered on its own (data-model §1).
+ */
+export function serviceLabel(slug: string): string {
+    return slug in PROVIDER_LABELS ? PROVIDER_LABELS[slug] : humanizeSlug(slug);
 }
 
 /** Return the CSS class for the source tag (manual vs imported styling). */

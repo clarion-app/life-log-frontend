@@ -329,7 +329,7 @@ describe('ConnectedServices — disconnect integration', () => {
     );
 
     // Connection is visible
-    expect(screen.getByText(/Google-Health/i)).toBeInTheDocument();
+    expect(screen.getByText(/Google Health/i)).toBeInTheDocument();
     expect(screen.queryByText(/Your Connections/i)).not.toBeNull();
 
     // Simulate post-disconnect state: empty connections, service now connectable
@@ -366,7 +366,7 @@ describe('ConnectedServices — disconnect integration', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Google-Health/i)).toBeInTheDocument();
+    expect(screen.getByText(/Google Health/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /disconnect/i })).not.toBeNull();
   });
 });

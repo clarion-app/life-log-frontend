@@ -5,6 +5,7 @@ import {
   useDeleteServiceCredentialMutation,
 } from './serviceCredentialApi';
 import { ServiceCredentialForm } from './ServiceCredentialForm';
+import { serviceLabel } from './sourceLabels';
 import type { ServiceCredentialType } from './types';
 
 export const WearableServices: React.FC = () => {
@@ -20,6 +21,7 @@ export const WearableServices: React.FC = () => {
   const [verifyPending, setVerifyPending] = useState<string | null>(null);
   const [verifyOutcome, setVerifyOutcome] = useState<Record<string, string>>({});
   const [transportError, setTransportError] = useState<string | null>(null);
+  const [removalOutcome, setRemovalOutcome] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -70,9 +72,20 @@ export const WearableServices: React.FC = () => {
     setTransportError(null);
 
     try {
-      await deleteCredential({
+      const result = await deleteCredential({
         service: service.external_service,
       }).unwrap();
+
+      // Confirmation of the node-wide impact the user was warned about before
+      // the action — never the first mention of it.
+      const marked = result?.connections_marked_needing_attention ?? 0;
+      setRemovalOutcome(
+        marked === 0
+          ? `${serviceLabel(service.external_service)} is no longer configured. No existing connections were affected.`
+          : `${serviceLabel(service.external_service)} is no longer configured. ${marked} existing ${
+              marked === 1 ? 'connection' : 'connections'
+            } on this node stopped working, as warned.`,
+      );
     } catch (err: any) {
       setTransportError('Could not remove. Try again.');
     } finally {
@@ -94,6 +107,12 @@ export const WearableServices: React.FC = () => {
         </div>
       )}
 
+      {removalOutcome && (
+        <div className="notification is-info">
+          {removalOutcome}
+        </div>
+      )}
+
       {services.length === 0 && (
         <div className="notification is-info">
           No services registered on this node.
@@ -102,7 +121,7 @@ export const WearableServices: React.FC = () => {
 
       {services.map((service: ServiceCredentialType) => (
         <div key={service.external_service} className="box">
-          <h2 className="title is-3">{service.external_service}</h2>
+          <h2 className="title is-3">{serviceLabel(service.external_service)}</h2>
 
           <ServiceCredentialForm service={service} />
 

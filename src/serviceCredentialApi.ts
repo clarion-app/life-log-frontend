@@ -61,7 +61,7 @@ export const serviceCredentialApi = createApi({
     }),
 
     deleteServiceCredential: build.mutation<
-      { deleted: boolean },
+      { removed: boolean; connections_marked_needing_attention: number },
       { service: string }
     >({
       query: ({ service }) => ({

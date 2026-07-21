@@ -30,7 +30,7 @@ export const connectedAccountApi = createApi({
     }),
 
     beginConnection: build.mutation<
-      { authorization_url: string },
+      { authorization_url: string; expires_at: string },
       { external_service: string }
     >({
       query: ({ external_service }) => ({
@@ -42,7 +42,7 @@ export const connectedAccountApi = createApi({
     }),
 
     completeConnection: build.mutation<
-      { connected: boolean },
+      { id: string; external_service: string; status: string; reconnected: boolean },
       { external_service: string; state: string; code: string }
     >({
       query: ({ external_service, state, code }) => ({
@@ -72,7 +72,7 @@ export const connectedAccountApi = createApi({
     }),
 
     disconnect: build.mutation<
-      { disconnected: boolean },
+      { disconnected: boolean; revocation_confirmed: boolean },
       { connectionId: string }
     >({
       query: ({ connectionId }) => ({
